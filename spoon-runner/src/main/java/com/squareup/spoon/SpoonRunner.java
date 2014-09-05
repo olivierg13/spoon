@@ -50,12 +50,13 @@ public final class SpoonRunner {
   private final IRemoteAndroidTestRunner.TestSize testSize;
   private final boolean failIfNoDeviceConnected;
   private final boolean sequential;
+  private final File script;
 
   private SpoonRunner(String title, File androidSdk, File applicationApk, File instrumentationApk,
       File output, boolean debug, boolean noAnimations, int adbTimeout, Set<String> serials,
       String classpath, String className, String methodName,
       IRemoteAndroidTestRunner.TestSize testSize, boolean failIfNoDeviceConnected,
-      boolean sequential) {
+      boolean sequential, File script) {
     this.title = title;
     this.androidSdk = androidSdk;
     this.applicationApk = applicationApk;
@@ -71,6 +72,7 @@ public final class SpoonRunner {
     this.serials = ImmutableSet.copyOf(serials);
     this.failIfNoDeviceConnected = failIfNoDeviceConnected;
     this.sequential = sequential;
+    this.script = script;
 
     if (sequential) {
       this.threadExecutor = Executors.newSingleThreadExecutor();
@@ -169,6 +171,11 @@ public final class SpoonRunner {
           }
         };
 
+        if (sequential && script != null) {
+          // Execute a script between each tests if sequential mode on
+          threadExecutor.execute(getExecutableScript());
+        }
+
         threadExecutor.execute(runnable);
       }
 
@@ -189,6 +196,19 @@ public final class SpoonRunner {
     }
 
     return summary.end().build();
+  }
+
+  /** Returns {@link Runnable} if scripts are launched between tests. */
+  private Runnable getExecutableScript() {
+    return new Runnable() {
+      @Override public void run() {
+        try {
+          new ProcessBuilder(script.getAbsolutePath()).start();
+        } catch (IOException e) {
+          logDebug(debug, "Error executing script at path: %s", script.getAbsolutePath());
+        }
+      }
+    };
   }
 
   /** Returns {@code false} if a test failed on any device. */
@@ -231,6 +251,7 @@ public final class SpoonRunner {
     private int adbTimeout;
     private boolean failIfNoDeviceConnected;
     private boolean sequential;
+    private File script;
 
     /** Identifying title for this execution. */
     public Builder setTitle(String title) {
@@ -338,6 +359,15 @@ public final class SpoonRunner {
       return this;
     }
 
+    /** Path to script executed in sequential mode. */
+    public Builder setScript(File script) {
+      if (script != null) {
+        checkArgument(script.exists(), "Script path does not exist.");
+      }
+      this.script = script;
+      return this;
+    }
+
     public Builder setMethodName(String methodName) {
       this.methodName = methodName;
       return this;
@@ -357,7 +387,7 @@ public final class SpoonRunner {
 
       return new SpoonRunner(title, androidSdk, applicationApk, instrumentationApk, output, debug,
           noAnimations, adbTimeout, serials, classpath, className, methodName, testSize,
-          failIfNoDeviceConnected, sequential);
+          failIfNoDeviceConnected, sequential, script);
     }
   }
 
@@ -401,6 +431,11 @@ public final class SpoonRunner {
     @Parameter(names = { "--sequential" },
         description = "Execute tests sequentially (one device at a time)")
     public boolean sequential;
+
+    @Parameter(names = { "--script" },
+        description = "Script executed between each test (use with sequential options)",
+        converter = FileConverter.class)
+    public File script;
 
     @Parameter(names = { "--no-animations" }, description = "Disable animated gif generation")
     public boolean noAnimations;
@@ -471,6 +506,7 @@ public final class SpoonRunner {
         .setAdbTimeout(parsedArgs.adbTimeoutSeconds * 1000)
         .setFailIfNoDeviceConnected(parsedArgs.failIfNoDeviceConnected)
         .setSequential(parsedArgs.sequential)
+        .setScript(parsedArgs.script)
         .setClassName(parsedArgs.className)
         .setMethodName(parsedArgs.methodName)
         .useAllAttachedDevices()
