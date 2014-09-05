@@ -106,6 +106,7 @@ Options:
     --size              Only run test methods annotated by testSize (small, medium, large)
     --adb-timeout       Set maximum execution time per test in seconds (10min default)
     --sequential        Execute the tests device by device
+    --script            Path to a script that you want to run before each test (sequential mode)
 ```
 
 If you are using Maven for compilation, a plugin is provided for easy execution.
