@@ -11,7 +11,7 @@
 
   <groupId>com.squareup.spoon</groupId>
   <artifactId>parent</artifactId>
-  <version>1.1.2-SNAPSHOT</version>
+  <version>1.1.2-OG-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <name>Spoon (Parent)</name>
@@ -30,6 +30,17 @@
     <system>GitHub Issues</system>
     <url>http://github.com/square/spoon/issues</url>
   </issueManagement>
+
+    <distributionManagement>
+        <repository>
+            <id>release</id>
+            <url>file:///../og-maven/release</url>
+        </repository>
+        <snapshotRepository>
+            <id>snapshot</id>
+            <url>file:///../og-maven/release</url>
+        </snapshotRepository>
+    </distributionManagement>
 
   <licenses>
     <license>
