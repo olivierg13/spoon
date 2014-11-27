@@ -9,6 +9,9 @@ import com.beust.jcommander.ParameterException;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 import com.squareup.spoon.html.HtmlRenderer;
+
+import org.apache.commons.io.FileUtils;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
@@ -18,7 +21,6 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import org.apache.commons.io.FileUtils;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -203,9 +205,14 @@ public final class SpoonRunner {
     return new Runnable() {
       @Override public void run() {
         try {
-          new ProcessBuilder(script.getAbsolutePath()).start();
+          ProcessBuilder pb = new ProcessBuilder(script.getAbsolutePath());
+          Process p = pb.start();     // Start the process.
+          p.waitFor();                // Wait for the process to finish.
+          logDebug(debug, "Script executed successfully", script.getAbsolutePath());
         } catch (IOException e) {
           logDebug(debug, "Error executing script at path: %s", script.getAbsolutePath());
+        } catch (InterruptedException e) {
+            logDebug(debug, "Script execution interrupted at path: %s", script.getAbsolutePath());
         }
       }
     };
