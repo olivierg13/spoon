@@ -20,7 +20,7 @@
     android:versionCode="1"
     android:versionName="1.0">
 
-  <uses-sdk android:minSdkVersion="7" android:targetSdkVersion="17"/>
+  <uses-sdk android:minSdkVersion="7" android:targetSdkVersion="21"/>
   <uses-feature android:name="android.hardware.touchscreen" android:required="false"/>
 
   <!-- Used by instrumentation tests only. Do not include in production apps unless necessary! -->

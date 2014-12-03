@@ -12,8 +12,10 @@ import com.squareup.spoon.html.HtmlRenderer;
 
 import org.apache.commons.io.FileUtils;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -30,7 +32,9 @@ import static com.squareup.spoon.SpoonLogger.logDebug;
 import static com.squareup.spoon.SpoonLogger.logInfo;
 import static java.util.Collections.synchronizedSet;
 
-/** Represents a collection of devices and the test configuration to be executed. */
+/**
+ * Represents a collection of devices and the test configuration to be executed.
+ */
 public final class SpoonRunner {
   private static final String DEFAULT_TITLE = "Spoon Execution";
   public static final String DEFAULT_OUTPUT_DIRECTORY = "spoon-output";
@@ -115,7 +119,7 @@ public final class SpoonRunner {
     }
   }
 
-  private SpoonSummary runTests(AndroidDebugBridge adb, Set<String> serials) {
+  private SpoonSummary runTests(AndroidDebugBridge adb, final Set<String> serials) {
     int targetCount = serials.size();
     logInfo("Executing instrumentation suite on %d device(s).", targetCount);
 
@@ -152,6 +156,9 @@ public final class SpoonRunner {
         logDebug(debug, "[%s] Execution done.", serial);
       }
     } else {
+      // Execute a script before the first test on the thread executor if sequential mode on
+      threadExecutor.execute(getExecutableScript());
+
       // Spawn a new thread for each device and wait for them all to finish.
       final CountDownLatch done = new CountDownLatch(targetCount);
       final Set<String> remaining = synchronizedSet(new HashSet<String>(serials));
@@ -165,18 +172,17 @@ public final class SpoonRunner {
             } catch (Exception e) {
               summary.addResult(safeSerial, new DeviceResult.Builder().addException(e).build());
             } finally {
+              String[] serialsArray = serials.toArray(new String[serials.size()]);
+              if (!serial.equals(serialsArray[serialsArray.length - 1])) {
+                // Execute a script at the end of each tests if sequential mode on
+                execScript();
+              }
               done.countDown();
               remaining.remove(serial);
-              logDebug(debug, "[%s] Execution done. (%s remaining %s)", serial, done.getCount(),
-                  remaining);
+              logInfo("[%s] Execution done. (%s remaining %s)", serial, done.getCount(), remaining);
             }
           }
         };
-
-        if (sequential && script != null) {
-          // Execute a script between each tests if sequential mode on
-          threadExecutor.execute(getExecutableScript());
-        }
 
         threadExecutor.execute(runnable);
       }
@@ -200,25 +206,48 @@ public final class SpoonRunner {
     return summary.end().build();
   }
 
-  /** Returns {@link Runnable} if scripts are launched between tests. */
+  /**
+   * Returns {@link Runnable} if scripts are launched between tests.
+   */
   private Runnable getExecutableScript() {
     return new Runnable() {
-      @Override public void run() {
-        try {
-          ProcessBuilder pb = new ProcessBuilder(script.getAbsolutePath());
-          Process p = pb.start();     // Start the process.
-          p.waitFor();                // Wait for the process to finish.
-          logDebug(debug, "Script executed successfully", script.getAbsolutePath());
-        } catch (IOException e) {
-          logDebug(debug, "Error executing script at path: %s", script.getAbsolutePath());
-        } catch (InterruptedException e) {
-            logDebug(debug, "Script execution interrupted at path: %s", script.getAbsolutePath());
-        }
+      @Override
+      public void run() {
+        execScript();
       }
     };
   }
 
-  /** Returns {@code false} if a test failed on any device. */
+  /**
+   * Execute the script specified
+   */
+  private void execScript() {
+    if (sequential && script != null) {
+      try {
+        Runtime run = Runtime.getRuntime();
+        Process proc = run.exec(new String[] {
+            "/bin/bash", "-c", "echo 5 | " + script.getAbsolutePath()
+        });
+        BufferedReader br = new BufferedReader(new InputStreamReader(proc.getInputStream()));
+        String line;
+
+        logInfo("Output of running script is");
+        while ((line = br.readLine()) != null) {
+          logInfo(line);
+        }
+        proc.waitFor();           // Wait for the process to finish.
+        logInfo("Script executed successfully %s", script.getAbsolutePath());
+      } catch (IOException e) {
+        logInfo("Error executing script at path: %s", script.getAbsolutePath());
+      } catch (InterruptedException e) {
+        logInfo("Script execution interrupted at path: %s", script.getAbsolutePath());
+      }
+    }
+  }
+
+  /**
+   * Returns {@code false} if a test failed on any device.
+   */
   static boolean parseOverallSuccess(SpoonSummary summary) {
     for (DeviceResult result : summary.getResults().values()) {
       if (result.getInstallFailed()) {
@@ -241,7 +270,9 @@ public final class SpoonRunner {
         debug, noAnimations, adbTimeout, classpath, testInfo, className, methodName, testSize);
   }
 
-  /** Build a test suite for the specified devices and configuration. */
+  /**
+   * Build a test suite for the specified devices and configuration.
+   */
   public static class Builder {
     private String title = DEFAULT_TITLE;
     private File androidSdk;
@@ -260,14 +291,18 @@ public final class SpoonRunner {
     private boolean sequential;
     private File script;
 
-    /** Identifying title for this execution. */
+    /**
+     * Identifying title for this execution.
+     */
     public Builder setTitle(String title) {
       checkNotNull(title, "Title cannot be null.");
       this.title = title;
       return this;
     }
 
-    /** Path to the local Android SDK directory. */
+    /**
+     * Path to the local Android SDK directory.
+     */
     public Builder setAndroidSdk(File androidSdk) {
       checkNotNull(androidSdk, "SDK path not specified.");
       checkArgument(androidSdk.exists(), "SDK path does not exist.");
@@ -275,7 +310,9 @@ public final class SpoonRunner {
       return this;
     }
 
-    /** Path to application APK. */
+    /**
+     * Path to application APK.
+     */
     public Builder setApplicationApk(File apk) {
       checkNotNull(apk, "APK path not specified.");
       checkArgument(apk.exists(), "APK path does not exist.");
@@ -283,7 +320,9 @@ public final class SpoonRunner {
       return this;
     }
 
-    /** Path to instrumentation APK. */
+    /**
+     * Path to instrumentation APK.
+     */
     public Builder setInstrumentationApk(File apk) {
       checkNotNull(apk, "Instrumentation APK path not specified.");
       checkArgument(apk.exists(), "Instrumentation APK path does not exist.");
@@ -291,32 +330,42 @@ public final class SpoonRunner {
       return this;
     }
 
-    /** Path to output directory. */
+    /**
+     * Path to output directory.
+     */
     public Builder setOutputDirectory(File output) {
       checkNotNull(output, "Output directory not specified.");
       this.output = output;
       return this;
     }
 
-    /** Whether or not debug logging is enabled. */
+    /**
+     * Whether or not debug logging is enabled.
+     */
     public Builder setDebug(boolean debug) {
       this.debug = debug;
       return this;
     }
 
-    /** Whether or not animations are enabled. */
+    /**
+     * Whether or not animations are enabled.
+     */
     public Builder setNoAnimations(boolean noAnimations) {
       this.noAnimations = noAnimations;
       return this;
     }
 
-    /** Set ADB timeout. */
+    /**
+     * Set ADB timeout.
+     */
     public Builder setAdbTimeout(int value) {
       this.adbTimeout = value;
       return this;
     }
 
-    /** Add a device serial for test execution. */
+    /**
+     * Add a device serial for test execution.
+     */
     public Builder addDevice(String serial) {
       checkNotNull(serial, "Serial cannot be null.");
       checkArgument(serials == null || !serials.isEmpty(), "Already marked as using all devices.");
@@ -327,7 +376,9 @@ public final class SpoonRunner {
       return this;
     }
 
-    /** Use all currently attached device serials when executed. */
+    /**
+     * Use all currently attached device serials when executed.
+     */
     public Builder useAllAttachedDevices() {
       if (this.serials != null) {
         throw new IllegalStateException("Serial list already contains entries.");
@@ -339,7 +390,9 @@ public final class SpoonRunner {
       return this;
     }
 
-    /** Classpath to use for new JVM processes. */
+    /**
+     * Classpath to use for new JVM processes.
+     */
     public Builder setClasspath(String classpath) {
       checkNotNull(classpath, "Classpath cannot be null.");
       this.classpath = classpath;
@@ -366,11 +419,12 @@ public final class SpoonRunner {
       return this;
     }
 
-    /** Path to script executed in sequential mode. */
+    /**
+     * Path to script executed in sequential mode.
+     */
     public Builder setScript(File script) {
-      if (script != null) {
-        checkArgument(script.exists(), "Script path does not exist.");
-      }
+      checkNotNull(script, "Script path not specified.");
+      checkArgument(script.exists(), "Script path does not exist " + script.getAbsolutePath());
       this.script = script;
       return this;
     }
@@ -467,14 +521,16 @@ public final class SpoonRunner {
 
   /* JCommander deems it necessary that this class be public. Lame. */
   public static class FileConverter implements IStringConverter<File> {
-    @Override public File convert(String s) {
+    @Override
+    public File convert(String s) {
       return cleanFile(s);
     }
   }
 
   public static class TestSizeConverter
       implements IStringConverter<IRemoteAndroidTestRunner.TestSize> {
-    @Override public IRemoteAndroidTestRunner.TestSize convert(String value) {
+    @Override
+    public IRemoteAndroidTestRunner.TestSize convert(String value) {
       try {
         return IRemoteAndroidTestRunner.TestSize.getTestSize(value);
       } catch (IllegalArgumentException e) {
