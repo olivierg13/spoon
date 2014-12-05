@@ -10,6 +10,7 @@ import java.util.Map;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.squareup.spoon.SpoonLogger.logDebug;
 import static com.squareup.spoon.SpoonLogger.logError;
+import static com.squareup.spoon.SpoonLogger.logInfo;
 
 /** Marshals an {@link ITestRunListener}'s output to a {@link DeviceResult.Builder}. */
 final class SpoonTestRunListener implements ITestRunListener {
@@ -28,12 +29,12 @@ final class SpoonTestRunListener implements ITestRunListener {
   }
 
   @Override public void testRunStarted(String runName, int testCount) {
-    logDebug(debug, "testCount=%d runName=%s", testCount, runName);
+    logInfo("testCount=%d runName=%s", testCount, runName);
     result.startTests();
   }
 
   @Override public void testStarted(TestIdentifier test) {
-    logDebug(debug, "test=%s", test);
+    logInfo("Running test=%s", test);
     DeviceTestResult.Builder methodResult = new DeviceTestResult.Builder().startTest();
     methodResults.put(testIdentifierAdapter.adapt(test), methodResult);
   }
