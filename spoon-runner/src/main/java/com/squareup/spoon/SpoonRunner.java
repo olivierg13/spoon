@@ -143,6 +143,7 @@ public final class SpoonRunner {
 
     if (targetCount == 1) {
       // Since there is only one device just execute it synchronously in this process.
+      execScript();
       String serial = serials.iterator().next();
       String safeSerial = SpoonUtils.sanitizeSerial(serial);
       try {
@@ -168,6 +169,7 @@ public final class SpoonRunner {
           @Override
           public void run() {
             try {
+              logInfo("Executing device [%s].", serial);
               summary.addResult(safeSerial, getTestRunner(serial, testInfo).runInNewProcess());
             } catch (Exception e) {
               summary.addResult(safeSerial, new DeviceResult.Builder().addException(e).build());
