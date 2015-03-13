@@ -2,6 +2,7 @@ package com.squareup.spoon;
 
 import com.android.ddmlib.AndroidDebugBridge;
 import com.android.ddmlib.testrunner.IRemoteAndroidTestRunner;
+import com.android.ddmlib.testrunner.ITestRunListener;
 import com.beust.jcommander.IStringConverter;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
@@ -12,13 +13,13 @@ import com.squareup.spoon.html.HtmlRenderer;
 
 import org.apache.commons.io.FileUtils;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -55,6 +56,7 @@ public final class SpoonRunner {
   private final String classpath;
   private final IRemoteAndroidTestRunner.TestSize testSize;
   private final boolean failIfNoDeviceConnected;
+  private final List<ITestRunListener> testRunListeners;
   private final boolean sequential;
   private final File script;
 
@@ -62,7 +64,7 @@ public final class SpoonRunner {
       File output, boolean debug, boolean noAnimations, int adbTimeout, Set<String> serials,
       String classpath, String className, String methodName,
       IRemoteAndroidTestRunner.TestSize testSize, boolean failIfNoDeviceConnected,
-      boolean sequential, File script) {
+      List<ITestRunListener> testRunListeners, boolean sequential, File script) {
     this.title = title;
     this.androidSdk = androidSdk;
     this.applicationApk = applicationApk;
@@ -77,6 +79,7 @@ public final class SpoonRunner {
     this.testSize = testSize;
     this.serials = ImmutableSet.copyOf(serials);
     this.failIfNoDeviceConnected = failIfNoDeviceConnected;
+    this.testRunListeners = testRunListeners;
     this.sequential = sequential;
     this.script = script;
 
@@ -165,6 +168,7 @@ public final class SpoonRunner {
       final Set<String> remaining = synchronizedSet(new HashSet<String>(serials));
       for (final String serial : serials) {
         final String safeSerial = SpoonUtils.sanitizeSerial(serial);
+        logDebug(debug, "[%s] Starting execution.", serial);
         Runnable runnable = new Runnable() {
           @Override
           public void run() {
@@ -269,7 +273,8 @@ public final class SpoonRunner {
 
   private SpoonDeviceRunner getTestRunner(String serial, SpoonInstrumentationInfo testInfo) {
     return new SpoonDeviceRunner(androidSdk, applicationApk, instrumentationApk, output, serial,
-        debug, noAnimations, adbTimeout, classpath, testInfo, className, methodName, testSize);
+        debug, noAnimations, adbTimeout, classpath, testInfo, className, methodName, testSize,
+        testRunListeners);
   }
 
   /**
@@ -290,6 +295,7 @@ public final class SpoonRunner {
     private IRemoteAndroidTestRunner.TestSize testSize;
     private int adbTimeout;
     private boolean failIfNoDeviceConnected;
+    private List<ITestRunListener> testRunListeners = new ArrayList<ITestRunListener>();
     private boolean sequential;
     private File script;
 
@@ -436,6 +442,12 @@ public final class SpoonRunner {
       return this;
     }
 
+    public Builder addTestRunListener(ITestRunListener testRunListener) {
+      checkNotNull(testRunListener, "TestRunListener cannot be null.");
+      testRunListeners.add(testRunListener);
+      return this;
+    }
+
     public SpoonRunner build() {
       checkNotNull(androidSdk, "SDK is required.");
       checkArgument(androidSdk.exists(), "SDK path does not exist.");
@@ -450,7 +462,7 @@ public final class SpoonRunner {
 
       return new SpoonRunner(title, androidSdk, applicationApk, instrumentationApk, output, debug,
           noAnimations, adbTimeout, serials, classpath, className, methodName, testSize,
-          failIfNoDeviceConnected, sequential, script);
+          failIfNoDeviceConnected, testRunListeners, sequential, script);
     }
   }
 
