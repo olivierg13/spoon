@@ -77,7 +77,7 @@ public final class SpoonRunner {
     this.serials = ImmutableSet.copyOf(serials);
     this.failIfNoDeviceConnected = failIfNoDeviceConnected;
     this.testRunListeners = testRunListeners;
-	this.sequential = sequential;
+    this.sequential = sequential;
 
     if (sequential) {
       this.threadExecutor = Executors.newSingleThreadExecutor();
@@ -160,7 +160,7 @@ public final class SpoonRunner {
       final Set<String> remaining = synchronizedSet(new HashSet<String>(serials));
       for (final String serial : serials) {
         final String safeSerial = SpoonUtils.sanitizeSerial(serial);
-		logDebug(debug, "[%s] Starting execution.", serial);
+        logDebug(debug, "[%s] Starting execution.", serial);
         Runnable runnable = new Runnable() {
           @Override
           public void run() {
