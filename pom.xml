@@ -11,7 +11,7 @@
 
   <groupId>com.squareup.spoon</groupId>
   <artifactId>parent</artifactId>
-  <version>1.1.2.9-OG-SNAPSHOT</version>
+  <version>1.2.2-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <name>Spoon (Parent)</name>
@@ -31,16 +31,16 @@
     <url>http://github.com/square/spoon/issues</url>
   </issueManagement>
 
-    <distributionManagement>
-        <repository>
-            <id>release</id>
-            <url>file:///Users/oliviergoutay/git_forked/omada-nexus/release</url>
-        </repository>
-        <snapshotRepository>
-            <id>snapshot</id>
-            <url>file:///Users/oliviergoutay/git_forked/omada-nexus/release</url>
-        </snapshotRepository>
-    </distributionManagement>
+  <distributionManagement>
+    <repository>
+      <id>release</id>
+      <url>file:///Users/oliviergoutay/git_forked/omada-nexus/release</url>
+    </repository>
+    <snapshotRepository>
+      <id>snapshot</id>
+      <url>file:///Users/oliviergoutay/git_forked/omada-nexus/release</url>
+    </snapshotRepository>
+  </distributionManagement>
 
   <licenses>
     <license>
@@ -64,7 +64,11 @@
     <module>spoon-client</module>
     <module>spoon-maven-plugin</module>
     <module>spoon-runner</module>
-    <module>spoon-sample</module>
+    <!--
+    Uncomment this if you want to run the sample locally.  It `mvn install`s fine, but breaks on
+    `mvn package`.
+    -->
+    <!--<module>spoon-sample</module>-->
   </modules>
 
   <dependencyManagement>
@@ -97,7 +101,7 @@
       <dependency>
         <groupId>com.android.tools.ddms</groupId>
         <artifactId>ddmlib</artifactId>
-        <version>23.2.1</version>
+        <version>24.5.0</version>
       </dependency>
       <dependency>
         <groupId>junit</groupId>

@@ -18,6 +18,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import javax.imageio.ImageIO;
 import org.apache.commons.io.FileUtils;
@@ -26,7 +27,7 @@ import static com.android.ddmlib.FileListingService.FileEntry;
 import static com.android.ddmlib.FileListingService.TYPE_DIRECTORY;
 
 /** Utilities for executing instrumentation tests on devices. */
-final class SpoonUtils {
+public final class SpoonUtils {
   private static final Pattern SERIAL_VALIDATION = Pattern.compile("[^a-zA-Z0-9_-]");
   static final Gson GSON = new GsonBuilder() //
       .registerTypeAdapter(File.class, new TypeAdapter<File>() {
@@ -87,7 +88,7 @@ final class SpoonUtils {
   }
 
   /** Find all device serials that are plugged in through ADB. */
-  static Set<String> findAllDevices(AndroidDebugBridge adb) {
+  public static Set<String> findAllDevices(AndroidDebugBridge adb) {
     Set<String> devices = new LinkedHashSet<String>();
     for (IDevice realDevice : adb.getDevices()) {
       devices.add(realDevice.getSerialNumber());
@@ -96,11 +97,11 @@ final class SpoonUtils {
   }
 
   /** Get an {@link com.android.ddmlib.AndroidDebugBridge} instance given an SDK path. */
-  static AndroidDebugBridge initAdb(File sdk) {
-    AndroidDebugBridge.init(false);
+  public static AndroidDebugBridge initAdb(File sdk, long timeOutMs) {
+    AndroidDebugBridge.initIfNeeded(false);
     File adbPath = FileUtils.getFile(sdk, "platform-tools", "adb");
-    AndroidDebugBridge adb = AndroidDebugBridge.createBridge(adbPath.getAbsolutePath(), true);
-    waitForAdb(adb);
+    AndroidDebugBridge adb = AndroidDebugBridge.createBridge(adbPath.getAbsolutePath(), false);
+    waitForAdb(adb, timeOutMs);
     return adb;
   }
 
@@ -128,18 +129,19 @@ final class SpoonUtils {
     encoder.finish();
   }
 
-  private static void waitForAdb(AndroidDebugBridge adb) {
-    for (int i = 1; i < 10; i++) {
+  private static void waitForAdb(AndroidDebugBridge adb, long timeOutMs) {
+    long sleepTimeMs = TimeUnit.SECONDS.toMillis(1);
+    while (!adb.hasInitialDeviceList() && timeOutMs > 0) {
       try {
-        Thread.sleep(i * 100);
+        Thread.sleep(sleepTimeMs);
       } catch (InterruptedException e) {
         throw new RuntimeException(e);
       }
-      if (adb.isConnected()) {
-        return;
-      }
+      timeOutMs -= sleepTimeMs;
     }
-    throw new RuntimeException("Unable to connect to adb.");
+    if (timeOutMs <= 0 && !adb.hasInitialDeviceList()) {
+      throw new RuntimeException("Timeout getting device list.", null);
+    }
   }
 
   private SpoonUtils() {
