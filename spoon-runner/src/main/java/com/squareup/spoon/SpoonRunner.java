@@ -12,8 +12,10 @@ import com.squareup.spoon.html.HtmlRenderer;
 
 import org.apache.commons.io.FileUtils;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -57,12 +59,14 @@ public final class SpoonRunner {
   private final boolean failIfNoDeviceConnected;
   private final List<ITestRunListener> testRunListeners;
   private final boolean terminateAdb;
+  private boolean sequential;
+  private File script;
 
   private SpoonRunner(String title, File androidSdk, File applicationApk, File instrumentationApk,
-      File output, boolean debug, boolean noAnimations, int adbTimeout, Set<String> serials,
-      String classpath, List<String> instrumentationArgs, String className, String methodName,
-      IRemoteAndroidTestRunner.TestSize testSize, boolean failIfNoDeviceConnected,
-      List<ITestRunListener> testRunListeners, boolean sequential, File script, boolean terminateAdb) {
+                      File output, boolean debug, boolean noAnimations, int adbTimeout, Set<String> serials,
+                      String classpath, List<String> instrumentationArgs, String className, String methodName,
+                      IRemoteAndroidTestRunner.TestSize testSize, boolean failIfNoDeviceConnected,
+                      List<ITestRunListener> testRunListeners, boolean sequential, File script, boolean terminateAdb) {
     this.title = title;
     this.androidSdk = androidSdk;
     this.applicationApk = applicationApk;
@@ -475,8 +479,8 @@ public final class SpoonRunner {
       }
 
       return new SpoonRunner(title, androidSdk, applicationApk, instrumentationApk, output, debug,
-          noAnimations, adbTimeout, serials, classpath, className, methodName, testSize,
-          failIfNoDeviceConnected, testRunListeners, sequential, script, terminateAdb);
+              noAnimations, adbTimeout, serials, classpath, instrumentationArgs, className, methodName,
+              testSize, failIfNoDeviceConnected, testRunListeners, sequential, script, terminateAdb);
     }
   }
 
