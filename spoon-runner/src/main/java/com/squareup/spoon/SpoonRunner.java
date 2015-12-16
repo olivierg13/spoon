@@ -238,7 +238,7 @@ public final class SpoonRunner {
       try {
         Runtime run = Runtime.getRuntime();
         Process proc = run.exec(new String[] {
-            "/bin/bash", "-c", "echo 5 | " + script.getAbsolutePath()
+            "/bin/bash", "-c", script.getAbsolutePath()
         });
         BufferedReader br = new BufferedReader(new InputStreamReader(proc.getInputStream()));
         String line;
